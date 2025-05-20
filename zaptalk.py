@@ -3,7 +3,9 @@ import logging
 import asyncio
 import asyncpg
 import google.generativeai as genai
-from telegram import Update, ChatAction, BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+
+from telegram import Update, BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 # === SETUP LOGGING ===
@@ -64,9 +66,9 @@ async def save_user_conversation(user_id: int, conversation: str):
 # === START COMMAND ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Support", url="https://t.me/WorkGlows")],
-        [InlineKeyboardButton("Add Me To Your Group", url=f"https://t.me/{context.bot.username}?startgroup=true")],
-        [InlineKeyboardButton("Updates", url="https://t.me/TheCryptoElders")]
+        [InlineKeyboardButton("Join Our Group", url="https://t.me/yourgroup")],
+        [InlineKeyboardButton("Add Me to Group", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+        [InlineKeyboardButton("Updates Channel", url="https://t.me/yourchannel")]
     ])
     await update.message.reply_text(
         "Hi~ I'm Hinata... I’m always here if you want to talk.",
