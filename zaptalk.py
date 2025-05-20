@@ -3,6 +3,7 @@ import logging
 import asyncio
 import asyncpg
 import google.generativeai as genai
+import nest_asyncio
 
 from telegram import Update, BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatAction
@@ -51,7 +52,9 @@ async def init_db():
 async def get_user_conversation(user_id: int) -> str:
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT conversation FROM user_memory WHERE user_id=$1", user_id)
-        return row["conversation"] if row else ""
+        if row:
+            return row["conversation"]
+        return ""
 
 # === Save conversation history for user ===
 async def save_user_conversation(user_id: int, conversation: str):
@@ -143,11 +146,13 @@ async def main():
     logger.info("Bot is running...")
     await app.run_polling()
 
-# === RUN ENTRY POINT SAFELY FOR ALREADY-RUNNING EVENT LOOP ===
+# === ENTRY POINT ===
 if __name__ == "__main__":
     try:
-        asyncio.get_event_loop().run_until_complete(main())
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
+        asyncio.run(main())
+    except RuntimeError as e:
+        if "already running" in str(e):
+            nest_asyncio.apply()
+            asyncio.get_event_loop().run_until_complete(main())
+        else:
+            raise
