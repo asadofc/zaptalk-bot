@@ -51,9 +51,7 @@ async def init_db():
 async def get_user_conversation(user_id: int) -> str:
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT conversation FROM user_memory WHERE user_id=$1", user_id)
-        if row:
-            return row["conversation"]
-        return ""
+        return row["conversation"] if row else ""
 
 # === Save conversation history for user ===
 async def save_user_conversation(user_id: int, conversation: str):
@@ -96,7 +94,6 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text.strip()
 
-    # Basic input validation
     if not user_message or len(user_message) > 500:
         await update.message.reply_text("Please send a shorter message.")
         return
@@ -104,21 +101,14 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
     try:
-        # Load previous conversation
         previous_convo = await get_user_conversation(user_id)
-
-        # Build prompt with persona + conversation memory + new message
         prompt = f"{HINATA_PERSONA}\n\n{previous_convo}\nUser: {user_message}\nHinata:"
-
-        # Generate response
         response = model.generate_content(prompt)
         reply = response.text.strip()
 
-        # Limit length for realism
         if len(reply) > 300:
             reply = reply[:300] + "..."
 
-        # Save updated conversation memory (append Q&A)
         updated_convo = previous_convo + f"\nUser: {user_message}\nHinata: {reply}"
         await save_user_conversation(user_id, updated_convo)
 
@@ -150,8 +140,14 @@ async def main():
 
     await set_menu_commands(app)
 
-    print("Bot is running...")
+    logger.info("Bot is running...")
     await app.run_polling()
 
+# === RUN ENTRY POINT SAFELY FOR ALREADY-RUNNING EVENT LOOP ===
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.get_event_loop().run_until_complete(main())
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
